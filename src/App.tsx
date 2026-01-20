@@ -70,6 +70,19 @@ function App() {
   const [folderSearchInput, setFolderSearchInput] = useState('')
   const [showFolderDropdown, setShowFolderDropdown] = useState(false)
 
+  const [isEditBookmarkModalOpen, setIsEditBookmarkModalOpen] = useState(false)
+  const [selectedBookmarkForEdit, setSelectedBookmarkForEdit] = useState<Bookmark | null>(null)
+  const [editBookmarkUrl, setEditBookmarkUrl] = useState('')
+  const [editBookmarkTitle, setEditBookmarkTitle] = useState('')
+  const [editBookmarkDescription, setEditBookmarkDescription] = useState('')
+  const [editBookmarkUrlError, setEditBookmarkUrlError] = useState('')
+  const [editBookmarkHashtagInput, setEditBookmarkHashtagInput] = useState('')
+  const [editBookmarkHashtags, setEditBookmarkHashtags] = useState<string[]>([])
+  const [showEditHashtagDropdown, setShowEditHashtagDropdown] = useState(false)
+  const [selectedFolderForEditBookmark, setSelectedFolderForEditBookmark] = useState<number | null>(null)
+  const [editFolderSearchInput, setEditFolderSearchInput] = useState('')
+  const [showEditFolderDropdown, setShowEditFolderDropdown] = useState(false)
+
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
   
@@ -146,6 +159,57 @@ function App() {
     setShowFolderDropdown(false)
     setIsAddBookmarkModalOpen(false)
   }
+
+  const handleEditBookmarkOpen = (bookmark: Bookmark) => {
+    setSelectedBookmarkForEdit(bookmark)
+    setEditBookmarkUrl(bookmark.url || '')
+    setEditBookmarkTitle(bookmark.title || '')
+    setEditBookmarkDescription(bookmark.description || '')
+    setEditBookmarkHashtags([])
+    setEditBookmarkHashtagInput('')
+    setEditBookmarkUrlError('')
+    setSelectedFolderForEditBookmark(selectedFolderId)
+    setEditFolderSearchInput('')
+    setShowEditHashtagDropdown(false)
+    setShowEditFolderDropdown(false)
+    setIsEditBookmarkModalOpen(true)
+  }
+
+  const handleCancelEditBookmarkModal = () => {
+    setSelectedBookmarkForEdit(null)
+    setEditBookmarkUrl('')
+    setEditBookmarkTitle('')
+    setEditBookmarkDescription('')
+    setEditBookmarkUrlError('')
+    setEditBookmarkHashtags([])
+    setEditBookmarkHashtagInput('')
+    setEditFolderSearchInput('')
+    setSelectedFolderForEditBookmark(null)
+    setShowEditHashtagDropdown(false)
+    setShowEditFolderDropdown(false)
+    setIsEditBookmarkModalOpen(false)
+  }
+
+  const handleEditAddHashtag = (tag: string) => {
+    setEditBookmarkHashtags([...editBookmarkHashtags, tag])
+    setEditBookmarkHashtagInput('')
+    setShowEditHashtagDropdown(false)
+  }
+
+  const handleEditRemoveHashtag = (tag: string) => {
+    setEditBookmarkHashtags(editBookmarkHashtags.filter((t) => t !== tag))
+  }
+
+  const handleSaveEditBookmark = () => {
+    if (!editBookmarkUrl.trim() || !validateUrl(editBookmarkUrl)) {
+      setEditBookmarkUrlError('Please enter a valid URL')
+      return
+    }
+    // TODO: Save bookmark changes to the server
+    handleCancelEditBookmarkModal()
+  }
+
+  const canConfirmEditBookmark = editBookmarkUrl.trim() && !editBookmarkUrlError && editBookmarkUrl.includes('.')
 
   const canConfirmBookmark = bookmarkUrl.trim() && !bookmarkUrlError && bookmarkUrl.includes('.')
 
@@ -484,7 +548,8 @@ function App() {
                 {filteredBookmarks.map((bookmark) => (
                   <div
                     key={bookmark.id}
-                    className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow p-4"
+                    onClick={() => handleEditBookmarkOpen(bookmark)}
+                    className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
                       {bookmark.title || 'Untitled'}
@@ -500,6 +565,7 @@ function App() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 dark:text-blue-400 hover:underline text-sm break-all"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {bookmark.url}
                       </a>
@@ -890,6 +956,280 @@ function App() {
           </div>
         </>
       )}
+
+      {/* Edit Bookmark Modal */}
+      {isEditBookmarkModalOpen && selectedBookmarkForEdit && (
+        <>
+          {/* Transparent Background Overlay */}
+          <div
+            className="fixed inset-0 bg-black dark:bg-black opacity-50 dark:bg-opacity-50 z-40"
+            onClick={handleCancelEditBookmarkModal}
+            role="presentation"
+          />
+          {/* Modal Container */}
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-96 pointer-events-auto max-h-[90vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+                Edit Bookmark
+              </h2>
+
+              {/* Title Input */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  value={editBookmarkTitle}
+                  onChange={(e) => setEditBookmarkTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      handleCancelEditBookmarkModal();
+                    }
+                  }}
+                  placeholder="Bookmark title"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+
+              {/* URL Input */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  URL
+                </label>
+                <input
+                  type="text"
+                  value={editBookmarkUrl}
+                  onChange={(e) => {
+                    setEditBookmarkUrl(e.target.value);
+                    if (e.target.value.trim()) {
+                      validateUrl(e.target.value);
+                    } else {
+                      setEditBookmarkUrlError("");
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      handleCancelEditBookmarkModal();
+                    }
+                  }}
+                  placeholder="https://example.com"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:focus:ring-blue-500"
+                />
+                {editBookmarkUrlError && (
+                  <p className="text-red-600 dark:text-red-400 text-sm mt-2">
+                    {editBookmarkUrlError}
+                  </p>
+                )}
+              </div>
+
+              {/* Description Input */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={editBookmarkDescription}
+                  onChange={(e) => setEditBookmarkDescription(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" && !e.shiftKey) {
+                      handleCancelEditBookmarkModal();
+                    }
+                  }}
+                  placeholder="Add a description"
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              {/* Hashtags Input */}
+              <div className="mb-6 relative">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Hashtags
+                </label>
+                <input
+                  type="text"
+                  value={editBookmarkHashtagInput}
+                  onChange={(e) => {
+                    setEditBookmarkHashtagInput(e.target.value);
+                    setShowEditHashtagDropdown(e.target.value.length > 0);
+                  }}
+                  onFocus={() =>
+                    setShowEditHashtagDropdown(editBookmarkHashtagInput.length > 0)
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      handleCancelEditBookmarkModal();
+                    }
+                  }}
+                  placeholder="Type to search hashtags"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-blue-500"
+                />
+
+                {/* Hashtag Dropdown */}
+                {showEditHashtagDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto dark:bg-gray-700 dark:border-gray-600">
+                    {hashtags.filter((tag) =>
+                      tag.toLowerCase().includes(editBookmarkHashtagInput.toLowerCase()) &&
+                        !editBookmarkHashtags.includes(tag)
+                    ).length > 0 ? (
+                      hashtags
+                        .filter((tag) =>
+                          tag.toLowerCase().includes(editBookmarkHashtagInput.toLowerCase()) &&
+                            !editBookmarkHashtags.includes(tag)
+                        )
+                        .map((tag) => (
+                          <button
+                            key={tag}
+                            onClick={() => handleEditAddHashtag(tag)}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:hover:bg-gray-600 dark:text-gray-300"
+                          >
+                            {tag}
+                          </button>
+                        ))
+                    ) : editBookmarkHashtagInput.trim() ? (
+                      <div className="px-4 py-3">
+                        <button
+                          onClick={() => {
+                            const newTag = editBookmarkHashtagInput.startsWith("#")
+                              ? editBookmarkHashtagInput
+                              : `#${editBookmarkHashtagInput}`;
+                            handleEditAddHashtag(newTag);
+                          }}
+                          className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm dark:bg-blue-700 dark:hover:bg-blue-600"
+                        >
+                          + Add "{editBookmarkHashtagInput}"
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                {/* Selected Hashtags */}
+                {editBookmarkHashtags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {editBookmarkHashtags.map((tag) => (
+                      <div
+                        key={tag}
+                        className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 dark:bg-blue-900 dark:text-blue-200"
+                      >
+                        {tag}
+                        <button
+                          onClick={() => handleEditRemoveHashtag(tag)}
+                          className="text-blue-700 hover:text-blue-900 font-bold dark:text-blue-200 dark:hover:text-blue-100"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Folder Selection */}
+              <div className="mb-6 relative">
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">
+                  Folder
+                </label>
+                <input
+                  type="text"
+                  value={editFolderSearchInput}
+                  onChange={(e) => {
+                    setEditFolderSearchInput(e.target.value);
+                    setShowEditFolderDropdown(true);
+                  }}
+                  onFocus={() => setShowEditFolderDropdown(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      handleCancelEditBookmarkModal();
+                    }
+                  }}
+                  placeholder="Search or select folder"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-blue-500"
+                />
+
+                {/* Folder Dropdown */}
+                {showEditFolderDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto dark:bg-gray-700 dark:border-gray-600">
+                    {folders
+                      .filter((folder) =>
+                        folder.name.toLowerCase().includes(editFolderSearchInput.toLowerCase())
+                      )
+                      .length > 0 ? (
+                      folders
+                        .filter((folder) =>
+                          folder.name.toLowerCase().includes(editFolderSearchInput.toLowerCase())
+                        )
+                        .map((folder) => (
+                          <button
+                            key={folder.id}
+                            onClick={() => {
+                              setSelectedFolderForEditBookmark(folder.id);
+                              setEditFolderSearchInput(folder.name);
+                              setShowEditFolderDropdown(false);
+                            }}
+                            className={`w-full text-left px-4 py-2 ${
+                              selectedFolderForEditBookmark === folder.id
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                                : "hover:bg-gray-100 text-gray-700 dark:hover:bg-gray-600 dark:text-gray-300"
+                            }`}
+                          >
+                            {folder.name}
+                          </button>
+                        ))
+                    ) : editFolderSearchInput.trim() ? (
+                      <div className="px-4 py-3">
+                        <button
+                          onClick={() => setIsAddFolderModalOpen(true)}
+                          className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm dark:bg-blue-700 dark:hover:bg-blue-600"
+                        >
+                          + Create folder "{editFolderSearchInput}"
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                {/* Selected Folder Display */}
+                {selectedFolderForEditBookmark && (
+                  <p className="text-sm text-gray-600 mt-2 dark:text-gray-400">
+                    Selected:{" "}
+                    <span className="font-medium">
+                      {
+                        folders.find((f) => f.id === selectedFolderForEditBookmark)
+                          ?.name
+                      }
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 mt-8">
+                <button
+                  onClick={handleCancelEditBookmarkModal}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEditBookmark}
+                  disabled={!canConfirmEditBookmark}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors font-medium ${
+                    canConfirmEditBookmark
+                      ? "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
+                  }`}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsMenuOpen}
