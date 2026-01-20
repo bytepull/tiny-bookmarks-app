@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import SettingsModal from './components/SettingsModal'
-import { fetchHashtags, fetchFolders, fetchBookmarks } from './utils/remoteDataService'
+import { fetchHashtags, fetchFolders, fetchBookmarks, updateHashtag } from './utils/remoteDataService'
 import type { Hashtag, Folder, Bookmark } from './utils/remoteDataService'
 
 interface FolderData extends Folder {
@@ -85,6 +85,11 @@ function App() {
 
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
+
+  const [isEditHashtagModalOpen, setIsEditHashtagModalOpen] = useState(false)
+  const [selectedHashtagForEdit, setSelectedHashtagForEdit] = useState<string | null>(null)
+  const [editHashtagName, setEditHashtagName] = useState('')
+  const [editHashtagError, setEditHashtagError] = useState('')
   
   // Initialize settings from cookies
   const getCookieValue = (name: string): string => {
@@ -212,6 +217,54 @@ function App() {
   const canConfirmEditBookmark = editBookmarkUrl.trim() && !editBookmarkUrlError && editBookmarkUrl.includes('.')
 
   const canConfirmBookmark = bookmarkUrl.trim() && !bookmarkUrlError && bookmarkUrl.includes('.')
+
+  const handleCancelEditHashtagModal = () => {
+    setSelectedHashtagForEdit(null)
+    setEditHashtagName('')
+    setEditHashtagError('')
+    setIsEditHashtagModalOpen(false)
+  }
+
+  const handleSaveEditHashtag = async () => {
+    if (!editHashtagName.trim()) {
+      setEditHashtagError('Hashtag name cannot be empty')
+      return
+    }
+
+    if (selectedHashtagForEdit === editHashtagName) {
+      handleCancelEditHashtagModal()
+      return
+    }
+
+    const newName = editHashtagName.startsWith('#') ? editHashtagName : `#${editHashtagName}`
+    
+    // Check if hashtag name already exists
+    if (hashtags.some((tag) => tag.toLowerCase() === newName.toLowerCase() && tag !== selectedHashtagForEdit)) {
+      setEditHashtagError('Hashtag already exists')
+      return
+    }
+
+    try {
+      // Find the old name without # to match the original data
+      const oldName = selectedHashtagForEdit?.startsWith('#') ? selectedHashtagForEdit.slice(1) : selectedHashtagForEdit || ''
+      const cleanNewName = newName.startsWith('#') ? newName.slice(1) : newName
+
+      // Update hashtag via API
+      await updateHashtag(oldName, cleanNewName)
+
+      // Update local state
+      setHashtags((prev) =>
+        prev.map((tag) => (tag === selectedHashtagForEdit ? newName : tag))
+      )
+
+      handleCancelEditHashtagModal()
+    } catch (error) {
+      console.error('Failed to update hashtag:', error)
+      setEditHashtagError(
+        error instanceof Error ? error.message : 'Failed to update hashtag'
+      )
+    }
+  }
 
   const settingsButtonRef = useRef<HTMLDivElement>(null);
 
@@ -641,20 +694,49 @@ function App() {
                   {hashtags.map((tag) => (
                     <div
                       key={tag}
-                      onClick={() => {
-                        setSelectedHashtags((prev) =>
-                          prev.includes(tag)
-                            ? prev.filter((t) => t !== tag)
-                            : [...prev, tag],
-                        );
-                      }}
-                      className={`px-4 py-2 rounded-lg cursor-pointer transition-colors text-sm font-medium ${
+                      className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium flex items-center justify-between ${
                         selectedHashtags.includes(tag)
                           ? "bg-gray-200 dark:bg-gray-500 text-gray-700 dark:text-gray-200"
                           : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                       }`}
                     >
-                      {tag}
+                      <div
+                        onClick={() => {
+                          setSelectedHashtags((prev) =>
+                            prev.includes(tag)
+                              ? prev.filter((t) => t !== tag)
+                              : [...prev, tag],
+                          );
+                        }}
+                        className="flex-1 cursor-pointer"
+                      >
+                        {tag}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedHashtagForEdit(tag);
+                          setEditHashtagName(tag);
+                          setEditHashtagError('');
+                          setIsEditHashtagModalOpen(true);
+                        }}
+                        className="ml-2 p-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors shrink-0"
+                        title="Edit hashtag"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1221,6 +1303,75 @@ function App() {
                       ? "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
                       : "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
                   }`}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Edit Hashtag Modal */}
+      {isEditHashtagModalOpen && (
+        <>
+          {/* Transparent Background Overlay */}
+          <div
+            className="fixed inset-0 bg-black dark:bg-black opacity-50 dark:bg-opacity-50 z-40"
+            onClick={handleCancelEditHashtagModal}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                handleCancelEditHashtagModal();
+              }
+            }}
+            role="presentation"
+          />
+          {/* Modal Container */}
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-96 pointer-events-auto">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+                Edit Hashtag
+              </h2>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Hashtag Name
+                </label>
+                <input
+                  type="text"
+                  value={editHashtagName}
+                  onChange={(e) => {
+                    setEditHashtagName(e.target.value);
+                    setEditHashtagError('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSaveEditHashtag();
+                    } else if (e.key === "Escape") {
+                      handleCancelEditHashtagModal();
+                    }
+                  }}
+                  placeholder="Enter hashtag name"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:focus:ring-blue-500"
+                  autoFocus
+                />
+                {editHashtagError && (
+                  <p className="text-red-600 dark:text-red-400 text-sm mt-2">
+                    {editHashtagError}
+                  </p>
+                )}
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 mt-8">
+                <button
+                  onClick={handleCancelEditHashtagModal}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEditHashtag}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium dark:bg-blue-700 dark:hover:bg-blue-600"
                 >
                   Save
                 </button>
