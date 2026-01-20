@@ -1,16 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import SettingsModal from './components/SettingsModal'
+import { fetchHashtags, fetchFolders, fetchBookmarks } from './utils/remoteDataService'
+import type { Hashtag, Folder, Bookmark } from './utils/remoteDataService'
+
+interface FolderData extends Folder {
+  id: number;
+}
 
 function App() {
-  const [folders, setFolders] = useState([
-    { id: 1, name: 'Work' },
-    { id: 2, name: 'Personal' },
-    { id: 3, name: 'Research' },
-    { id: 4, name: 'Learning' },
-  ])
+  const [folders, setFolders] = useState<FolderData[]>([])
+  const [foldersLoading, setFoldersLoading] = useState(true)
+  const [foldersError, setFoldersError] = useState<string | null>(null)
 
-  const [selectedFolderId, setSelectedFolderId] = useState(1)
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
   const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [folderNameError, setFolderNameError] = useState('')
@@ -28,9 +31,10 @@ function App() {
 
   const handleAddFolder = () => {
     if (validateFolderName(newFolderName)) {
-      const newFolder = {
+      const newFolder: FolderData = {
         id: Math.max(...folders.map((f) => f.id), 0) + 1,
         name: newFolderName,
+        bookmarks: [],
       }
       setFolders([...folders, newFolder])
       setNewFolderName('')
@@ -47,14 +51,14 @@ function App() {
 
   const canConfirmFolder = newFolderName.length >= 3 && !folderNameError
 
-  const [hashtags] = useState([
-    '#design',
-    '#development',
-    '#productivity',
-    '#inspiration',
-    '#resources',
-    '#tutorial',
-  ])
+  const [hashtagsData, setHashtagsData] = useState<Hashtag[]>([])
+  const [hashtags, setHashtags] = useState<string[]>([])
+  const [hashtagsLoading, setHashtagsLoading] = useState(true)
+  const [hashtagsError, setHashtagsError] = useState<string | null>(null)
+
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
+  const [bookmarksLoading, setBookmarksLoading] = useState(true)
+  const [bookmarksError, setBookmarksError] = useState<string | null>(null)
 
   const [isAddBookmarkModalOpen, setIsAddBookmarkModalOpen] = useState(false)
   const [bookmarkUrl, setBookmarkUrl] = useState('')
@@ -62,7 +66,7 @@ function App() {
   const [bookmarkHashtagInput, setBookmarkHashtagInput] = useState('')
   const [bookmarkHashtags, setBookmarkHashtags] = useState<string[]>([])
   const [showHashtagDropdown, setShowHashtagDropdown] = useState(false)
-  const [selectedFolderForBookmark, setSelectedFolderForBookmark] = useState<number>(selectedFolderId)
+  const [selectedFolderForBookmark, setSelectedFolderForBookmark] = useState<number | null>(null)
   const [folderSearchInput, setFolderSearchInput] = useState('')
   const [showFolderDropdown, setShowFolderDropdown] = useState(false)
 
@@ -178,6 +182,118 @@ function App() {
     }
   }, [isSettingsMenuOpen]);
 
+  // Load hashtags from remote server
+  useEffect(() => {
+    const loadHashtags = async () => {
+      try {
+        setHashtagsLoading(true);
+        setHashtagsError(null);
+        const data: Hashtag[] = await fetchHashtags();
+        // Store raw data for filtering
+        setHashtagsData(data);
+        // Convert hashtag names to include # prefix for display
+        const hashtagNames = data.map((tag) =>
+          tag.name.startsWith('#') ? tag.name : `#${tag.name}`
+        );
+        setHashtags(hashtagNames);
+      } catch (error) {
+        console.error('Failed to load hashtags:', error);
+        setHashtagsError(
+          error instanceof Error ? error.message : 'Failed to load hashtags'
+        );
+        // Set empty array as fallback
+        setHashtags([]);
+      } finally {
+        setHashtagsLoading(false);
+      }
+    };
+
+    loadHashtags();
+  }, [serverUrl, username, password]);
+
+  // Load folders from remote server
+  useEffect(() => {
+    const loadFolders = async () => {
+      try {
+        setFoldersLoading(true);
+        setFoldersError(null);
+        const data: Folder[] = await fetchFolders();
+        // Store folders with generated IDs
+        const foldersWithIds: FolderData[] = data.map((folder, index) => ({
+          id: index + 1,
+          name: folder.name,
+          bookmarks: folder.bookmarks,
+        }));
+        setFolders(foldersWithIds);
+        // Set "All" as selected by default (null means all folders)
+        setSelectedFolderId(null);
+        setSelectedFolderForBookmark(foldersWithIds.length > 0 ? foldersWithIds[0].id : null);
+      } catch (error) {
+        console.error('Failed to load folders:', error);
+        setFoldersError(
+          error instanceof Error ? error.message : 'Failed to load folders'
+        );
+        // Set empty array as fallback
+        setFolders([]);
+      } finally {
+        setFoldersLoading(false);
+      }
+    };
+
+    loadFolders();
+  }, [serverUrl, username, password]);
+
+  // Load bookmarks from remote server
+  useEffect(() => {
+    const loadBookmarks = async () => {
+      try {
+        setBookmarksLoading(true);
+        setBookmarksError(null);
+        const data: Bookmark[] = await fetchBookmarks();
+        setBookmarks(data);
+      } catch (error) {
+        console.error('Failed to load bookmarks:', error);
+        setBookmarksError(
+          error instanceof Error ? error.message : 'Failed to load bookmarks'
+        );
+        // Set empty array as fallback
+        setBookmarks([]);
+      } finally {
+        setBookmarksLoading(false);
+      }
+    };
+
+    loadBookmarks();
+  }, [serverUrl, username, password]);
+
+  // Filter bookmarks based on selected folder and hashtags
+  const selectedFolder = folders.find(f => f.id === selectedFolderId);
+  
+  // First, filter by folder
+  let filteredBookmarks = selectedFolder
+    ? bookmarks.filter(b => selectedFolder.bookmarks.includes(b.id))
+    : bookmarks;
+  
+  // Then, filter by selected hashtags
+  if (selectedHashtags.length > 0) {
+    // Get bookmark IDs from selected hashtags
+    const bookmarkIdsFromHashtags = new Set<number>();
+    selectedHashtags.forEach(selectedTag => {
+      const tagData = hashtagsData.find(h => {
+        const tagName = h.name.startsWith('#') ? h.name : `#${h.name}`;
+        return tagName === selectedTag;
+      });
+      if (tagData) {
+        tagData.bookmarks.forEach(id => bookmarkIdsFromHashtags.add(id));
+      }
+    });
+    
+    // Further filter to only include bookmarks in selected hashtags
+    filteredBookmarks = filteredBookmarks.filter(b => 
+      bookmarkIdsFromHashtags.has(b.id)
+    );
+  }
+
   return (
     <div
       className={`h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors duration-300 ${theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : ""}`}
@@ -240,21 +356,81 @@ function App() {
             >
               + New Folder
             </button>
-            <nav className="space-y-2">
-              {folders.map((folder) => (
+            {foldersLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              </div>
+            ) : foldersError ? (
+              <div className="text-center">
+                <p className="text-red-600 dark:text-red-400 text-sm mb-2">
+                  {foldersError}
+                </p>
+                <button
+                  onClick={() => {
+                    setFoldersLoading(true);
+                    fetchFolders()
+                      .then((data: Folder[]) => {
+                        const foldersWithIds: FolderData[] = data.map((folder, index) => ({
+                          id: index + 1,
+                          name: folder.name,
+                          bookmarks: folder.bookmarks,
+                        }));
+                        setFolders(foldersWithIds);
+                        setSelectedFolderId(null);
+                        setSelectedFolderForBookmark(foldersWithIds.length > 0 ? foldersWithIds[0].id : null);
+                        setFoldersError(null);
+                      })
+                      .catch((error) => {
+                        setFoldersError(
+                          error instanceof Error
+                            ? error.message
+                            : 'Failed to load folders'
+                        );
+                      })
+                      .finally(() => setFoldersLoading(false));
+                  }}
+                  className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <nav className="space-y-2">
+                {/* "All" item - always show */}
                 <div
-                  key={folder.id}
-                  onClick={() => setSelectedFolderId(folder.id)}
+                  onClick={() => setSelectedFolderId(null)}
                   className={`px-4 py-3 rounded-lg cursor-pointer transition-colors font-medium ${
-                    selectedFolderId === folder.id
+                    selectedFolderId === null
                       ? "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  {folder.name}
+                  All
                 </div>
-              ))}
-            </nav>
+                
+                {/* Regular folders */}
+                {folders.map((folder) => (
+                  <div
+                    key={folder.id}
+                    onClick={() => setSelectedFolderId(folder.id)}
+                    className={`px-4 py-3 rounded-lg cursor-pointer transition-colors font-medium ${
+                      selectedFolderId === folder.id
+                        ? "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {folder.name}
+                  </div>
+                ))}
+
+                {/* Message when no folders exist */}
+                {folders.length === 0 && (
+                  <p className="text-gray-500 dark:text-gray-400 text-sm px-4 py-2">
+                    No folder exists yet
+                  </p>
+                )}
+              </nav>
+            )}
           </div>
         </aside>
 
@@ -262,11 +438,76 @@ function App() {
         <main className="flex-1 overflow-y-auto p-8">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-300 mb-6">
-              Welcome to Bookmarks
+              Bookmarks
             </h2>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center text-gray-500 dark:text-gray-400">
-              <p>Select a folder or create a new bookmark to get started</p>
-            </div>
+            {bookmarksLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+            ) : bookmarksError ? (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center">
+                <p className="text-red-600 dark:text-red-400 mb-4">
+                  {bookmarksError}
+                </p>
+                <button
+                  onClick={() => {
+                    setBookmarksLoading(true);
+                    fetchBookmarks()
+                      .then((data: Bookmark[]) => {
+                        setBookmarks(data);
+                        setBookmarksError(null);
+                      })
+                      .catch((error) => {
+                        setBookmarksError(
+                          error instanceof Error
+                            ? error.message
+                            : 'Failed to load bookmarks'
+                        );
+                      })
+                      .finally(() => setBookmarksLoading(false));
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : bookmarks.length === 0 ? (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center text-gray-500 dark:text-gray-400">
+                <p>No bookmark exists yet</p>
+              </div>
+            ) : filteredBookmarks.length === 0 ? (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center text-gray-500 dark:text-gray-400">
+                <p>No bookmarks in this folder</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredBookmarks.map((bookmark) => (
+                  <div
+                    key={bookmark.id}
+                    className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow p-4"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+                      {bookmark.title || 'Untitled'}
+                    </h3>
+                    {bookmark.description && (
+                      <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
+                        {bookmark.description}
+                      </p>
+                    )}
+                    {bookmark.url && (
+                      <a
+                        href={bookmark.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-400 hover:underline text-sm break-all"
+                      >
+                        {bookmark.url}
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </main>
 
@@ -276,27 +517,83 @@ function App() {
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
               Hashtags
             </h2>
-            <div className="space-y-2">
-              {hashtags.map((tag) => (
-                <div
-                  key={tag}
+            {hashtagsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              </div>
+            ) : hashtagsError ? (
+              <div className="text-center">
+                <p className="text-red-600 dark:text-red-400 text-sm mb-2">
+                  {hashtagsError}
+                </p>
+                <button
                   onClick={() => {
-                    setSelectedHashtags((prev) =>
-                      prev.includes(tag)
-                        ? prev.filter((t) => t !== tag)
-                        : [...prev, tag],
-                    );
+                    setHashtagsLoading(true);
+                    fetchHashtags()
+                      .then((data: Hashtag[]) => {
+                        setHashtagsData(data);
+                        const hashtagNames = data.map((tag) =>
+                          tag.name.startsWith('#') ? tag.name : `#${tag.name}`
+                        );
+                        setHashtags(hashtagNames);
+                        setHashtagsError(null);
+                      })
+                      .catch((error) => {
+                        setHashtagsError(
+                          error instanceof Error
+                            ? error.message
+                            : 'Failed to load hashtags'
+                        );
+                      })
+                      .finally(() => setHashtagsLoading(false));
                   }}
-                  className={`px-4 py-2 rounded-lg cursor-pointer transition-colors text-sm font-medium ${
-                    selectedHashtags.includes(tag)
-                      ? "bg-gray-200 dark:bg-gray-500 text-gray-700 dark:text-gray-200"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : hashtags.length === 0 ? (
+              <div className="text-center">
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  No hashtags available
+                </p>
+              </div>
+            ) : (
+              <div>
+                <button
+                  onClick={() => setSelectedHashtags([])}
+                  disabled={selectedHashtags.length === 0}
+                  className={`w-full mb-4 px-4 py-2 rounded-lg transition-colors font-medium text-sm ${
+                    selectedHashtags.length === 0
+                      ? "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                      : "bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
                   }`}
                 >
-                  {tag}
+                  Clear
+                </button>
+                <div className="space-y-2">
+                  {hashtags.map((tag) => (
+                    <div
+                      key={tag}
+                      onClick={() => {
+                        setSelectedHashtags((prev) =>
+                          prev.includes(tag)
+                            ? prev.filter((t) => t !== tag)
+                            : [...prev, tag],
+                        );
+                      }}
+                      className={`px-4 py-2 rounded-lg cursor-pointer transition-colors text-sm font-medium ${
+                        selectedHashtags.includes(tag)
+                          ? "bg-gray-200 dark:bg-gray-500 text-gray-700 dark:text-gray-200"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      {tag}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         </aside>
       </div>
