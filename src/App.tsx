@@ -68,9 +68,23 @@ function App() {
 
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
-  const [serverUrl, setServerUrl] = useState('http://localhost:3000')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  
+  // Initialize settings from cookies
+  const getCookieValue = (name: string): string => {
+    const nameEQ = `${name}=`;
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+      cookie = cookie.trim();
+      if (cookie.startsWith(nameEQ)) {
+        return decodeURIComponent(cookie.substring(nameEQ.length));
+      }
+    }
+    return '';
+  };
+
+  const [serverUrl, setServerUrl] = useState(() => getCookieValue('bookmarks_serverUrl') || 'http://localhost:3000')
+  const [username, setUsername] = useState(() => getCookieValue('bookmarks_username') || '')
+  const [password, setPassword] = useState(() => getCookieValue('bookmarks_password') || '')
 
   const validateUrl = (url: string): boolean => {
     const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([\da-z.]{2,6})(\/[\w .-]*)*\/?$/i

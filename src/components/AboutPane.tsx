@@ -1,6 +1,6 @@
 export default function AboutPane() {
   return (
-    <div className="flex-1 p-8 flex items-center justify-center">
+    <div className="flex-1 p-8 overflow-y-auto flex justify-center">
       <div className="max-w-md text-center">
         <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">
           About

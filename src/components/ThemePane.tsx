@@ -5,7 +5,7 @@ interface ThemePaneProps {
 
 export default function ThemePane({ theme, onThemeChange }: ThemePaneProps) {
   return (
-    <div className="flex-1 p-8">
+    <div className="flex-1 p-8 overflow-y-auto">
       <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
         Theme Selection
       </h2>

@@ -14,7 +14,7 @@ export default function ImportExportPane({ onExport, onImport }: ImportExportPan
   };
 
   return (
-    <div className="flex-1 p-8">
+    <div className="flex-1 p-8 overflow-y-auto">
       <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
         Import / Export
       </h2>
