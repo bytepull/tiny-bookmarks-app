@@ -107,3 +107,36 @@ export const updateHashtag = async (oldName: string, newName: string): Promise<v
     throw error;
   }
 };
+
+export const updateFolder = async (oldName: string, newName: string): Promise<void> => {
+  try {
+    const serverUrl = getCookieValue('bookmarks_serverUrl') || 'http://localhost:3000';
+    const username = getCookieValue('bookmarks_username');
+    const password = getCookieValue('bookmarks_password');
+
+    const url = `${serverUrl}/folders/${oldName}`;
+    
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add Basic Auth if username and password are provided
+    if (username && password) {
+      const credentials = btoa(`${username}:${password}`);
+      headers['Authorization'] = `Basic ${credentials}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ name: newName }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update folder: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Error updating folder:', error);
+    throw error;
+  }
+};
