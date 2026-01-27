@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
-import SettingsModal from './components/SettingsModal'
+import SettingsModal from './components/settings/SettingsModal'
 import { fetchHashtags, fetchFolders, fetchBookmarks, updateHashtag, updateFolder } from './utils/remoteDataService'
 import type { Hashtag, Folder, Bookmark } from './utils/remoteDataService'
 
