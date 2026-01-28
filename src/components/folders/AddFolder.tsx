@@ -23,7 +23,9 @@ export default function AddFolder({
 
   const validateFolderName = (name: string): boolean => {
     if (
-      folders.some((folder) => folder.name.toLowerCase() === name.trim().toLowerCase())
+      folders.some(
+        (folder) => folder.name.toLowerCase() === name.trim().toLowerCase(),
+      )
     ) {
       setFolderError("Folder name already exists");
       return false;
@@ -32,18 +34,18 @@ export default function AddFolder({
     return true;
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const folderName = newFolderName.trim();
 
     if (validateFolderName(folderName)) {
-      addFolder(folderName)
-        .then((folderData) => {
-          setFolders([...folders, folderData]);
-          handleCancelModal();
-        })
-        .catch((error: Error) => {
-          setFolderError(error.message);
-        });
+      try {
+        const folderData: Folder = await addFolder(folderName);
+        setFolders([...folders, folderData]);
+        handleCancelModal();
+        console.log("Folder created successfully!");
+      } catch (error) {
+        setFolderError((error as Error).message);
+      }
     }
   };
 
