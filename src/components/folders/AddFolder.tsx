@@ -23,7 +23,7 @@ export default function AddFolder({
 
   const validateFolderName = (name: string): boolean => {
     if (
-      folders.some((folder) => folder.name.toLowerCase() === name.toLowerCase())
+      folders.some((folder) => folder.name.toLowerCase() === name.trim().toLowerCase())
     ) {
       setFolderError("Folder name already exists");
       return false;
