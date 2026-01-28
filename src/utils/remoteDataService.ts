@@ -4,6 +4,7 @@ export interface Hashtag {
 }
 
 export interface Folder {
+  id: number;
   name: string;
   bookmarks: number[];
 }
@@ -18,41 +19,44 @@ export interface Bookmark {
 
 const getCookieValue = (name: string): string => {
   const nameEQ = `${name}=`;
-  const cookies = document.cookie.split(';');
+  const cookies = document.cookie.split(";");
   for (let cookie of cookies) {
     cookie = cookie.trim();
     if (cookie.startsWith(nameEQ)) {
       return decodeURIComponent(cookie.substring(nameEQ.length));
     }
   }
-  return '';
+  return "";
 };
 
 const fetchFromServer = async <T>(endpoint: string): Promise<T[]> => {
   try {
-    const serverUrl = getCookieValue('bookmarks_serverUrl') || 'http://localhost:3000';
-    const username = getCookieValue('bookmarks_username');
-    const password = getCookieValue('bookmarks_password');
+    const serverUrl =
+      getCookieValue("bookmarks_serverUrl") || "http://localhost:3000";
+    const username = getCookieValue("bookmarks_username");
+    const password = getCookieValue("bookmarks_password");
 
     const url = `${serverUrl}${endpoint}`;
-    
+
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     // Add Basic Auth if username and password are provided
     if (username && password) {
       const credentials = btoa(`${username}:${password}`);
-      headers['Authorization'] = `Basic ${credentials}`;
+      headers["Authorization"] = `Basic ${credentials}`;
     }
 
     const response = await fetch(url, {
-      method: 'GET',
+      method: "GET",
       headers,
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch from ${endpoint}: ${response.statusText}`);
+      throw new Error(
+        `Failed to fetch from ${endpoint}: ${response.statusText}`,
+      );
     }
 
     const data: T[] = await response.json();
@@ -64,37 +68,41 @@ const fetchFromServer = async <T>(endpoint: string): Promise<T[]> => {
 };
 
 export const fetchHashtags = async (): Promise<Hashtag[]> => {
-  return fetchFromServer<Hashtag>('/hashtags');
+  return fetchFromServer<Hashtag>("/hashtags");
 };
 
 export const fetchFolders = async (): Promise<Folder[]> => {
-  return fetchFromServer<Folder>('/folders');
+  return fetchFromServer<Folder>("/folders");
 };
 
 export const fetchBookmarks = async (): Promise<Bookmark[]> => {
-  return fetchFromServer<Bookmark>('/bookmarks');
+  return fetchFromServer<Bookmark>("/bookmarks");
 };
 
-export const updateHashtag = async (oldName: string, newName: string): Promise<void> => {
+export const updateHashtag = async (
+  oldName: string,
+  newName: string,
+): Promise<void> => {
   try {
-    const serverUrl = getCookieValue('bookmarks_serverUrl') || 'http://localhost:3000';
-    const username = getCookieValue('bookmarks_username');
-    const password = getCookieValue('bookmarks_password');
+    const serverUrl =
+      getCookieValue("bookmarks_serverUrl") || "http://localhost:3000";
+    const username = getCookieValue("bookmarks_username");
+    const password = getCookieValue("bookmarks_password");
 
     const url = `${serverUrl}/hashtags/${oldName}`;
-    
+
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     // Add Basic Auth if username and password are provided
     if (username && password) {
       const credentials = btoa(`${username}:${password}`);
-      headers['Authorization'] = `Basic ${credentials}`;
+      headers["Authorization"] = `Basic ${credentials}`;
     }
 
     const response = await fetch(url, {
-      method: 'PATCH',
+      method: "PATCH",
       headers,
       body: JSON.stringify({ name: newName }),
     });
@@ -103,31 +111,71 @@ export const updateHashtag = async (oldName: string, newName: string): Promise<v
       throw new Error(`Failed to update hashtag: ${response.statusText}`);
     }
   } catch (error) {
-    console.error('Error updating hashtag:', error);
+    console.error("Error updating hashtag:", error);
     throw error;
   }
 };
 
-export const updateFolder = async (oldName: string, newName: string): Promise<void> => {
+export const addFolder = async (name: string): Promise<Folder> => {
   try {
-    const serverUrl = getCookieValue('bookmarks_serverUrl') || 'http://localhost:3000';
-    const username = getCookieValue('bookmarks_username');
-    const password = getCookieValue('bookmarks_password');
+    const serverUrl = `${window.location.protocol}//${window.location.hostname}:54098`;
+    const url = `${serverUrl}/folders`;
+    console.log(url);
 
-    const url = `${serverUrl}/folders/${oldName}`;
-    
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     // Add Basic Auth if username and password are provided
-    if (username && password) {
-      const credentials = btoa(`${username}:${password}`);
-      headers['Authorization'] = `Basic ${credentials}`;
+    // if (username && password) {
+    //   const credentials = btoa(`${username}:${password}`);
+    //   headers["Authorization"] = `Basic ${credentials}`;
+    // }
+
+    const options: RequestInit = {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: name }),
+    };
+
+    const response = await fetch(url, options);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to add folder: ${response.status} ${response.statusText}`,
+      );
     }
 
+    console.log("Folder added successfully");
+    const folderData = await response.json();
+    return folderData;
+
+  } catch (error) {
+    console.error("Error updating folder:", error);
+    throw error;
+  }
+};
+
+export const updateFolder = async (
+  oldName: string,
+  newName: string,
+): Promise<void> => {
+  try {
+    const serverUrl = `${window.location.protocol}://${window.location.hostname}:54098`;
+    const url = `${serverUrl}/folders/${oldName}`;
+
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+
+    // Add Basic Auth if username and password are provided
+    // if (username && password) {
+    //   const credentials = btoa(`${username}:${password}`);
+    //   headers["Authorization"] = `Basic ${credentials}`;
+    // }
+
     const response = await fetch(url, {
-      method: 'PATCH',
+      method: "PATCH",
       headers,
       body: JSON.stringify({ name: newName }),
     });
@@ -136,7 +184,7 @@ export const updateFolder = async (oldName: string, newName: string): Promise<vo
       throw new Error(`Failed to update folder: ${response.statusText}`);
     }
   } catch (error) {
-    console.error('Error updating folder:', error);
+    console.error("Error updating folder:", error);
     throw error;
   }
 };

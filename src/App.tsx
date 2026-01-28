@@ -1,354 +1,364 @@
-import { useState, useEffect, useRef } from 'react'
-import './App.css'
-import SettingsModal from './components/settings/SettingsModal'
-import { fetchHashtags, fetchFolders, fetchBookmarks, updateHashtag, updateFolder } from './utils/remoteDataService'
-import type { Hashtag, Folder, Bookmark } from './utils/remoteDataService'
-
-interface FolderData extends Folder {
-  id: number;
-}
+import { useState, useEffect, useRef } from "react";
+import "./App.css";
+import SettingsModal from "./components/settings/SettingsModal";
+import {
+  fetchHashtags,
+  fetchFolders,
+  fetchBookmarks,
+  updateHashtag,
+  updateFolder,
+} from "./utils/remoteDataService";
+import type { Hashtag, Folder, Bookmark } from "./utils/remoteDataService";
+import AddFolder from "./components/folders/AddFolder";
 
 function App() {
-  const [folders, setFolders] = useState<FolderData[]>([])
-  const [foldersLoading, setFoldersLoading] = useState(true)
-  const [foldersError, setFoldersError] = useState<string | null>(null)
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [foldersLoading, setFoldersLoading] = useState(true);
+  const [foldersError, setFoldersError] = useState<string | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false);
 
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
-  const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false)
-  const [newFolderName, setNewFolderName] = useState('')
-  const [folderNameError, setFolderNameError] = useState('')
+  const [selectedHashtags, setSelectedHashtags] = useState<string[]>([]);
 
-  const [selectedHashtags, setSelectedHashtags] = useState<string[]>([])
+  const [hashtagsData, setHashtagsData] = useState<Hashtag[]>([]);
+  const [hashtags, setHashtags] = useState<string[]>([]);
+  const [hashtagsLoading, setHashtagsLoading] = useState(true);
+  const [hashtagsError, setHashtagsError] = useState<string | null>(null);
 
-  const validateFolderName = (name: string): boolean => {
-    if (folders.some((folder) => folder.name.toLowerCase() === name.toLowerCase())) {
-      setFolderNameError('Folder name already exists')
-      return false
-    }
-    setFolderNameError('')
-    return true
-  }
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [bookmarksLoading, setBookmarksLoading] = useState(true);
+  const [bookmarksError, setBookmarksError] = useState<string | null>(null);
 
-  const handleAddFolder = () => {
-    if (validateFolderName(newFolderName)) {
-      const newFolder: FolderData = {
-        id: Math.max(...folders.map((f) => f.id), 0) + 1,
-        name: newFolderName,
-        bookmarks: [],
-      }
-      setFolders([...folders, newFolder])
-      setNewFolderName('')
-      setFolderNameError('')
-      setIsAddFolderModalOpen(false)
-    }
-  }
+  const [isAddBookmarkModalOpen, setIsAddBookmarkModalOpen] = useState(false);
+  const [bookmarkUrl, setBookmarkUrl] = useState("");
+  const [bookmarkUrlError, setBookmarkUrlError] = useState("");
+  const [bookmarkHashtagInput, setBookmarkHashtagInput] = useState("");
+  const [bookmarkHashtags, setBookmarkHashtags] = useState<string[]>([]);
+  const [showHashtagDropdown, setShowHashtagDropdown] = useState(false);
+  const [selectedFolderForBookmark, setSelectedFolderForBookmark] = useState<
+    number | null
+  >(null);
+  const [folderSearchInput, setFolderSearchInput] = useState("");
+  const [showFolderDropdown, setShowFolderDropdown] = useState(false);
 
-  const handleCancelModal = () => {
-    setNewFolderName('')
-    setFolderNameError('')
-    setIsAddFolderModalOpen(false)
-  }
+  const [isEditBookmarkModalOpen, setIsEditBookmarkModalOpen] = useState(false);
+  const [selectedBookmarkForEdit, setSelectedBookmarkForEdit] =
+    useState<Bookmark | null>(null);
+  const [editBookmarkUrl, setEditBookmarkUrl] = useState("");
+  const [editBookmarkTitle, setEditBookmarkTitle] = useState("");
+  const [editBookmarkDescription, setEditBookmarkDescription] = useState("");
+  const [editBookmarkUrlError, setEditBookmarkUrlError] = useState("");
+  const [editBookmarkHashtagInput, setEditBookmarkHashtagInput] = useState("");
+  const [editBookmarkHashtags, setEditBookmarkHashtags] = useState<string[]>(
+    [],
+  );
+  const [showEditHashtagDropdown, setShowEditHashtagDropdown] = useState(false);
+  const [selectedFolderForEditBookmark, setSelectedFolderForEditBookmark] =
+    useState<number | null>(null);
+  const [editFolderSearchInput, setEditFolderSearchInput] = useState("");
+  const [showEditFolderDropdown, setShowEditFolderDropdown] = useState(false);
 
-  const canConfirmFolder = newFolderName.length >= 3 && !folderNameError
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
 
-  const [hashtagsData, setHashtagsData] = useState<Hashtag[]>([])
-  const [hashtags, setHashtags] = useState<string[]>([])
-  const [hashtagsLoading, setHashtagsLoading] = useState(true)
-  const [hashtagsError, setHashtagsError] = useState<string | null>(null)
+  const [isEditHashtagModalOpen, setIsEditHashtagModalOpen] = useState(false);
+  const [selectedHashtagForEdit, setSelectedHashtagForEdit] = useState<
+    string | null
+  >(null);
+  const [editHashtagName, setEditHashtagName] = useState("");
+  const [editHashtagError, setEditHashtagError] = useState("");
 
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
-  const [bookmarksLoading, setBookmarksLoading] = useState(true)
-  const [bookmarksError, setBookmarksError] = useState<string | null>(null)
+  const [isEditFolderModalOpen, setIsEditFolderModalOpen] = useState(false);
+  const [selectedFolderForEdit, setSelectedFolderForEdit] =
+    useState<Folder | null>(null);
+  const [editFolderName, setEditFolderName] = useState("");
+  const [editFolderError, setEditFolderError] = useState("");
 
-  const [isAddBookmarkModalOpen, setIsAddBookmarkModalOpen] = useState(false)
-  const [bookmarkUrl, setBookmarkUrl] = useState('')
-  const [bookmarkUrlError, setBookmarkUrlError] = useState('')
-  const [bookmarkHashtagInput, setBookmarkHashtagInput] = useState('')
-  const [bookmarkHashtags, setBookmarkHashtags] = useState<string[]>([])
-  const [showHashtagDropdown, setShowHashtagDropdown] = useState(false)
-  const [selectedFolderForBookmark, setSelectedFolderForBookmark] = useState<number | null>(null)
-  const [folderSearchInput, setFolderSearchInput] = useState('')
-  const [showFolderDropdown, setShowFolderDropdown] = useState(false)
-
-  const [isEditBookmarkModalOpen, setIsEditBookmarkModalOpen] = useState(false)
-  const [selectedBookmarkForEdit, setSelectedBookmarkForEdit] = useState<Bookmark | null>(null)
-  const [editBookmarkUrl, setEditBookmarkUrl] = useState('')
-  const [editBookmarkTitle, setEditBookmarkTitle] = useState('')
-  const [editBookmarkDescription, setEditBookmarkDescription] = useState('')
-  const [editBookmarkUrlError, setEditBookmarkUrlError] = useState('')
-  const [editBookmarkHashtagInput, setEditBookmarkHashtagInput] = useState('')
-  const [editBookmarkHashtags, setEditBookmarkHashtags] = useState<string[]>([])
-  const [showEditHashtagDropdown, setShowEditHashtagDropdown] = useState(false)
-  const [selectedFolderForEditBookmark, setSelectedFolderForEditBookmark] = useState<number | null>(null)
-  const [editFolderSearchInput, setEditFolderSearchInput] = useState('')
-  const [showEditFolderDropdown, setShowEditFolderDropdown] = useState(false)
-
-  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false)
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
-
-  const [isEditHashtagModalOpen, setIsEditHashtagModalOpen] = useState(false)
-  const [selectedHashtagForEdit, setSelectedHashtagForEdit] = useState<string | null>(null)
-  const [editHashtagName, setEditHashtagName] = useState('')
-  const [editHashtagError, setEditHashtagError] = useState('')
-
-  const [isEditFolderModalOpen, setIsEditFolderModalOpen] = useState(false)
-  const [selectedFolderForEdit, setSelectedFolderForEdit] = useState<FolderData | null>(null)
-  const [editFolderName, setEditFolderName] = useState('')
-  const [editFolderError, setEditFolderError] = useState('')
-  
   // Initialize settings from cookies
   const getCookieValue = (name: string): string => {
     const nameEQ = `${name}=`;
-    const cookies = document.cookie.split(';');
+    const cookies = document.cookie.split(";");
     for (let cookie of cookies) {
       cookie = cookie.trim();
       if (cookie.startsWith(nameEQ)) {
         return decodeURIComponent(cookie.substring(nameEQ.length));
       }
     }
-    return '';
+    return "";
   };
 
-  const [serverUrl, setServerUrl] = useState(() => getCookieValue('bookmarks_serverUrl') || 'http://localhost:3000')
-  const [username, setUsername] = useState(() => getCookieValue('bookmarks_username') || '')
-  const [password, setPassword] = useState(() => getCookieValue('bookmarks_password') || '')
+  const [serverUrl, setServerUrl] = useState(
+    () => getCookieValue("bookmarks_serverUrl") || "http://localhost:3000",
+  );
+  const [username, setUsername] = useState(
+    () => getCookieValue("bookmarks_username") || "",
+  );
+  const [password, setPassword] = useState(
+    () => getCookieValue("bookmarks_password") || "",
+  );
 
   const validateUrl = (url: string): boolean => {
-    const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([\da-z.]{2,6})(\/[\w .-]*)*\/?$/i
+    const urlRegex =
+      /^(https?:\/\/)?([\da-z.-]+)\.([\da-z.]{2,6})(\/[\w .-]*)*\/?$/i;
     if (urlRegex.test(url)) {
-      setBookmarkUrlError('')
-      return true
+      setBookmarkUrlError("");
+      return true;
     } else {
-      setBookmarkUrlError('Invalid URL')
-      return false
+      setBookmarkUrlError("Invalid URL");
+      return false;
     }
-  }
+  };
 
-  const filteredHashtags = hashtags.filter((tag) =>
-    tag.toLowerCase().includes(bookmarkHashtagInput.toLowerCase()) &&
-      !bookmarkHashtags.includes(tag)
-  )
+  const filteredHashtags = hashtags.filter(
+    (tag) =>
+      tag.toLowerCase().includes(bookmarkHashtagInput.toLowerCase()) &&
+      !bookmarkHashtags.includes(tag),
+  );
 
   const filteredFolders = folders.filter((folder) =>
-    folder.name.toLowerCase().includes(folderSearchInput.toLowerCase())
-  )
+    folder.name.toLowerCase().includes(folderSearchInput.toLowerCase()),
+  );
 
   const handleAddHashtag = (tag: string) => {
-    setBookmarkHashtags([...bookmarkHashtags, tag])
-    setBookmarkHashtagInput('')
-    setShowHashtagDropdown(false)
-  }
+    setBookmarkHashtags([...bookmarkHashtags, tag]);
+    setBookmarkHashtagInput("");
+    setShowHashtagDropdown(false);
+  };
 
   const handleRemoveHashtag = (tag: string) => {
-    setBookmarkHashtags(bookmarkHashtags.filter((t) => t !== tag))
-  }
+    setBookmarkHashtags(bookmarkHashtags.filter((t) => t !== tag));
+  };
 
   const handleAddBookmark = () => {
     if (!bookmarkUrl.trim() || !validateUrl(bookmarkUrl)) {
-      setBookmarkUrlError('Please enter a valid URL')
-      return
+      setBookmarkUrlError("Please enter a valid URL");
+      return;
     }
     // TODO: Save bookmark to the selected folder with selected hashtags
-    setBookmarkUrl('')
-    setBookmarkUrlError('')
-    setBookmarkHashtags([])
-    setBookmarkHashtagInput('')
-    setFolderSearchInput('')
-    setSelectedFolderForBookmark(selectedFolderId)
-    setIsAddBookmarkModalOpen(false)
-  }
+    setBookmarkUrl("");
+    setBookmarkUrlError("");
+    setBookmarkHashtags([]);
+    setBookmarkHashtagInput("");
+    setFolderSearchInput("");
+    setSelectedFolderForBookmark(selectedFolderId);
+    setIsAddBookmarkModalOpen(false);
+  };
 
   const handleCancelBookmarkModal = () => {
-    setBookmarkUrl('')
-    setBookmarkUrlError('')
-    setBookmarkHashtags([])
-    setBookmarkHashtagInput('')
-    setFolderSearchInput('')
-    setSelectedFolderForBookmark(selectedFolderId)
-    setShowHashtagDropdown(false)
-    setShowFolderDropdown(false)
-    setIsAddBookmarkModalOpen(false)
-  }
+    setBookmarkUrl("");
+    setBookmarkUrlError("");
+    setBookmarkHashtags([]);
+    setBookmarkHashtagInput("");
+    setFolderSearchInput("");
+    setSelectedFolderForBookmark(selectedFolderId);
+    setShowHashtagDropdown(false);
+    setShowFolderDropdown(false);
+    setIsAddBookmarkModalOpen(false);
+  };
 
   const handleEditBookmarkOpen = (bookmark: Bookmark) => {
-    setSelectedBookmarkForEdit(bookmark)
-    setEditBookmarkUrl(bookmark.url || '')
-    setEditBookmarkTitle(bookmark.title || '')
-    setEditBookmarkDescription(bookmark.description || '')
-    setEditBookmarkHashtags([])
-    setEditBookmarkHashtagInput('')
-    setEditBookmarkUrlError('')
-    setSelectedFolderForEditBookmark(selectedFolderId)
-    setEditFolderSearchInput('')
-    setShowEditHashtagDropdown(false)
-    setShowEditFolderDropdown(false)
-    setIsEditBookmarkModalOpen(true)
-  }
+    setSelectedBookmarkForEdit(bookmark);
+    setEditBookmarkUrl(bookmark.url || "");
+    setEditBookmarkTitle(bookmark.title || "");
+    setEditBookmarkDescription(bookmark.description || "");
+    setEditBookmarkHashtags([]);
+    setEditBookmarkHashtagInput("");
+    setEditBookmarkUrlError("");
+    setSelectedFolderForEditBookmark(selectedFolderId);
+    setEditFolderSearchInput("");
+    setShowEditHashtagDropdown(false);
+    setShowEditFolderDropdown(false);
+    setIsEditBookmarkModalOpen(true);
+  };
 
   const handleCancelEditBookmarkModal = () => {
-    setSelectedBookmarkForEdit(null)
-    setEditBookmarkUrl('')
-    setEditBookmarkTitle('')
-    setEditBookmarkDescription('')
-    setEditBookmarkUrlError('')
-    setEditBookmarkHashtags([])
-    setEditBookmarkHashtagInput('')
-    setEditFolderSearchInput('')
-    setSelectedFolderForEditBookmark(null)
-    setShowEditHashtagDropdown(false)
-    setShowEditFolderDropdown(false)
-    setIsEditBookmarkModalOpen(false)
-  }
+    setSelectedBookmarkForEdit(null);
+    setEditBookmarkUrl("");
+    setEditBookmarkTitle("");
+    setEditBookmarkDescription("");
+    setEditBookmarkUrlError("");
+    setEditBookmarkHashtags([]);
+    setEditBookmarkHashtagInput("");
+    setEditFolderSearchInput("");
+    setSelectedFolderForEditBookmark(null);
+    setShowEditHashtagDropdown(false);
+    setShowEditFolderDropdown(false);
+    setIsEditBookmarkModalOpen(false);
+  };
 
   const handleEditAddHashtag = (tag: string) => {
-    setEditBookmarkHashtags([...editBookmarkHashtags, tag])
-    setEditBookmarkHashtagInput('')
-    setShowEditHashtagDropdown(false)
-  }
+    setEditBookmarkHashtags([...editBookmarkHashtags, tag]);
+    setEditBookmarkHashtagInput("");
+    setShowEditHashtagDropdown(false);
+  };
 
   const handleEditRemoveHashtag = (tag: string) => {
-    setEditBookmarkHashtags(editBookmarkHashtags.filter((t) => t !== tag))
-  }
+    setEditBookmarkHashtags(editBookmarkHashtags.filter((t) => t !== tag));
+  };
 
   const handleSaveEditBookmark = () => {
     if (!editBookmarkUrl.trim() || !validateUrl(editBookmarkUrl)) {
-      setEditBookmarkUrlError('Please enter a valid URL')
-      return
+      setEditBookmarkUrlError("Please enter a valid URL");
+      return;
     }
     // TODO: Save bookmark changes to the server
-    handleCancelEditBookmarkModal()
-  }
+    handleCancelEditBookmarkModal();
+  };
 
-  const canConfirmEditBookmark = editBookmarkUrl.trim() && !editBookmarkUrlError && editBookmarkUrl.includes('.')
+  const canConfirmEditBookmark =
+    editBookmarkUrl.trim() &&
+    !editBookmarkUrlError &&
+    editBookmarkUrl.includes(".");
 
-  const canConfirmBookmark = bookmarkUrl.trim() && !bookmarkUrlError && bookmarkUrl.includes('.')
+  const canConfirmBookmark =
+    bookmarkUrl.trim() && !bookmarkUrlError && bookmarkUrl.includes(".");
 
   const handleCancelEditHashtagModal = () => {
-    setSelectedHashtagForEdit(null)
-    setEditHashtagName('')
-    setEditHashtagError('')
-    setIsEditHashtagModalOpen(false)
-  }
+    setSelectedHashtagForEdit(null);
+    setEditHashtagName("");
+    setEditHashtagError("");
+    setIsEditHashtagModalOpen(false);
+  };
 
   const handleSaveEditHashtag = async () => {
     if (!editHashtagName.trim()) {
-      setEditHashtagError('Hashtag name cannot be empty')
-      return
+      setEditHashtagError("Hashtag name cannot be empty");
+      return;
     }
 
     if (selectedHashtagForEdit === editHashtagName) {
-      handleCancelEditHashtagModal()
-      return
+      handleCancelEditHashtagModal();
+      return;
     }
 
-    const newName = editHashtagName.startsWith('#') ? editHashtagName : `#${editHashtagName}`
-    
+    const newName = editHashtagName.startsWith("#")
+      ? editHashtagName
+      : `#${editHashtagName}`;
+
     // Check if hashtag name already exists
-    if (hashtags.some((tag) => tag.toLowerCase() === newName.toLowerCase() && tag !== selectedHashtagForEdit)) {
-      setEditHashtagError('Hashtag already exists')
-      return
+    if (
+      hashtags.some(
+        (tag) =>
+          tag.toLowerCase() === newName.toLowerCase() &&
+          tag !== selectedHashtagForEdit,
+      )
+    ) {
+      setEditHashtagError("Hashtag already exists");
+      return;
     }
 
     try {
       // Find the old name without # to match the original data
-      const oldName = selectedHashtagForEdit?.startsWith('#') ? selectedHashtagForEdit.slice(1) : selectedHashtagForEdit || ''
-      const cleanNewName = newName.startsWith('#') ? newName.slice(1) : newName
+      const oldName = selectedHashtagForEdit?.startsWith("#")
+        ? selectedHashtagForEdit.slice(1)
+        : selectedHashtagForEdit || "";
+      const cleanNewName = newName.startsWith("#") ? newName.slice(1) : newName;
 
       // Update hashtag via API
-      await updateHashtag(oldName, cleanNewName)
+      await updateHashtag(oldName, cleanNewName);
 
       // Update local state
       setHashtags((prev) =>
-        prev.map((tag) => (tag === selectedHashtagForEdit ? newName : tag))
-      )
+        prev.map((tag) => (tag === selectedHashtagForEdit ? newName : tag)),
+      );
 
-      handleCancelEditHashtagModal()
+      handleCancelEditHashtagModal();
     } catch (error) {
-      console.error('Failed to update hashtag:', error)
+      console.error("Failed to update hashtag:", error);
       setEditHashtagError(
-        error instanceof Error ? error.message : 'Failed to update hashtag'
-      )
+        error instanceof Error ? error.message : "Failed to update hashtag",
+      );
     }
-  }
+  };
 
   const handleCancelEditFolderModal = () => {
-    setSelectedFolderForEdit(null)
-    setEditFolderName('')
-    setEditFolderError('')
-    setIsEditFolderModalOpen(false)
-  }
+    setSelectedFolderForEdit(null);
+    setEditFolderName("");
+    setEditFolderError("");
+    setIsEditFolderModalOpen(false);
+  };
 
   const handleSaveEditFolder = async () => {
     if (!editFolderName.trim()) {
-      setEditFolderError('Folder name cannot be empty')
-      return
+      setEditFolderError("Folder name cannot be empty");
+      return;
     }
 
     if (selectedFolderForEdit?.name === editFolderName) {
-      handleCancelEditFolderModal()
-      return
+      handleCancelEditFolderModal();
+      return;
     }
 
     // Check if folder name already exists
-    if (folders.some((folder) => folder.name.toLowerCase() === editFolderName.toLowerCase() && folder.id !== selectedFolderForEdit?.id)) {
-      setEditFolderError('Folder name already exists')
-      return
+    if (
+      folders.some(
+        (folder) =>
+          folder.name.toLowerCase() === editFolderName.toLowerCase() &&
+          folder.id !== selectedFolderForEdit?.id,
+      )
+    ) {
+      setEditFolderError("Folder name already exists");
+      return;
     }
 
     try {
-      const oldName = selectedFolderForEdit?.name || ''
+      const oldName = selectedFolderForEdit?.name || "";
 
       // Update folder via API
-      await updateFolder(oldName, editFolderName)
+      await updateFolder(oldName, editFolderName);
 
       // Update local state
       setFolders((prev) =>
-        prev.map((folder) => 
-          folder.id === selectedFolderForEdit?.id 
+        prev.map((folder) =>
+          folder.id === selectedFolderForEdit?.id
             ? { ...folder, name: editFolderName }
-            : folder
-        )
-      )
+            : folder,
+        ),
+      );
 
-      handleCancelEditFolderModal()
+      handleCancelEditFolderModal();
     } catch (error) {
-      console.error('Failed to update folder:', error)
+      console.error("Failed to update folder:", error);
       setEditFolderError(
-        error instanceof Error ? error.message : 'Failed to update folder'
-      )
+        error instanceof Error ? error.message : "Failed to update folder",
+      );
     }
-  }
+  };
 
   const settingsButtonRef = useRef<HTMLDivElement>(null);
 
-  const handleSettingsChange = (newServerUrl: string, newUsername: string, newPassword: string) => {
+  const handleSettingsChange = (
+    newServerUrl: string,
+    newUsername: string,
+    newPassword: string,
+  ) => {
     setServerUrl(newServerUrl);
     setUsername(newUsername);
     setPassword(newPassword);
     // TODO: Save settings to local storage or backend
-  }
+  };
 
   const handleExport = () => {
     // TODO: Implement export functionality
-    console.log('Export clicked');
-  }
+    console.log("Export clicked");
+  };
 
   const handleImport = (file: File) => {
     // TODO: Implement import functionality
-    console.log('Import file:', file);
-  }
+    console.log("Import file:", file);
+  };
 
   // ESC key to close settings modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isSettingsMenuOpen) {
+      if (e.key === "Escape" && isSettingsMenuOpen) {
         setIsSettingsMenuOpen(false);
       }
     };
-    
+
     if (isSettingsMenuOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
     }
   }, [isSettingsMenuOpen]);
 
@@ -363,13 +373,13 @@ function App() {
         setHashtagsData(data);
         // Convert hashtag names to include # prefix for display
         const hashtagNames = data.map((tag) =>
-          tag.name.startsWith('#') ? tag.name : `#${tag.name}`
+          tag.name.startsWith("#") ? tag.name : `#${tag.name}`,
         );
         setHashtags(hashtagNames);
       } catch (error) {
-        console.error('Failed to load hashtags:', error);
+        console.error("Failed to load hashtags:", error);
         setHashtagsError(
-          error instanceof Error ? error.message : 'Failed to load hashtags'
+          error instanceof Error ? error.message : "Failed to load hashtags",
         );
         // Set empty array as fallback
         setHashtags([]);
@@ -389,7 +399,7 @@ function App() {
         setFoldersError(null);
         const data: Folder[] = await fetchFolders();
         // Store folders with generated IDs
-        const foldersWithIds: FolderData[] = data.map((folder, index) => ({
+        const foldersWithIds: Folder[] = data.map((folder, index) => ({
           id: index + 1,
           name: folder.name,
           bookmarks: folder.bookmarks,
@@ -397,11 +407,13 @@ function App() {
         setFolders(foldersWithIds);
         // Set "All" as selected by default (null means all folders)
         setSelectedFolderId(null);
-        setSelectedFolderForBookmark(foldersWithIds.length > 0 ? foldersWithIds[0].id : null);
+        setSelectedFolderForBookmark(
+          foldersWithIds.length > 0 ? foldersWithIds[0].id : null,
+        );
       } catch (error) {
-        console.error('Failed to load folders:', error);
+        console.error("Failed to load folders:", error);
         setFoldersError(
-          error instanceof Error ? error.message : 'Failed to load folders'
+          error instanceof Error ? error.message : "Failed to load folders",
         );
         // Set empty array as fallback
         setFolders([]);
@@ -422,9 +434,9 @@ function App() {
         const data: Bookmark[] = await fetchBookmarks();
         setBookmarks(data);
       } catch (error) {
-        console.error('Failed to load bookmarks:', error);
+        console.error("Failed to load bookmarks:", error);
         setBookmarksError(
-          error instanceof Error ? error.message : 'Failed to load bookmarks'
+          error instanceof Error ? error.message : "Failed to load bookmarks",
         );
         // Set empty array as fallback
         setBookmarks([]);
@@ -437,30 +449,30 @@ function App() {
   }, [serverUrl, username, password]);
 
   // Filter bookmarks based on selected folder and hashtags
-  const selectedFolder = folders.find(f => f.id === selectedFolderId);
-  
+  const selectedFolder = folders.find((f) => f.id === selectedFolderId);
+
   // First, filter by folder
   let filteredBookmarks = selectedFolder
-    ? bookmarks.filter(b => selectedFolder.bookmarks.includes(b.id))
+    ? bookmarks.filter((b) => selectedFolder.bookmarks.includes(b.id))
     : bookmarks;
-  
+
   // Then, filter by selected hashtags
   if (selectedHashtags.length > 0) {
     // Get bookmark IDs from selected hashtags
     const bookmarkIdsFromHashtags = new Set<number>();
-    selectedHashtags.forEach(selectedTag => {
-      const tagData = hashtagsData.find(h => {
-        const tagName = h.name.startsWith('#') ? h.name : `#${h.name}`;
+    selectedHashtags.forEach((selectedTag) => {
+      const tagData = hashtagsData.find((h) => {
+        const tagName = h.name.startsWith("#") ? h.name : `#${h.name}`;
         return tagName === selectedTag;
       });
       if (tagData) {
-        tagData.bookmarks.forEach(id => bookmarkIdsFromHashtags.add(id));
+        tagData.bookmarks.forEach((id) => bookmarkIdsFromHashtags.add(id));
       }
     });
-    
+
     // Further filter to only include bookmarks in selected hashtags
-    filteredBookmarks = filteredBookmarks.filter(b => 
-      bookmarkIdsFromHashtags.has(b.id)
+    filteredBookmarks = filteredBookmarks.filter((b) =>
+      bookmarkIdsFromHashtags.has(b.id),
     );
   }
 
@@ -474,14 +486,14 @@ function App() {
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
           Bookmarks
         </h1>
-        
+
         <button
           onClick={() => setIsAddBookmarkModalOpen(true)}
           className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
         >
           + Add Bookmark
         </button>
-        
+
         <div className="relative" ref={settingsButtonRef}>
           <button
             onClick={() => setIsSettingsMenuOpen(true)}
@@ -540,21 +552,27 @@ function App() {
                     setFoldersLoading(true);
                     fetchFolders()
                       .then((data: Folder[]) => {
-                        const foldersWithIds: FolderData[] = data.map((folder, index) => ({
-                          id: index + 1,
-                          name: folder.name,
-                          bookmarks: folder.bookmarks,
-                        }));
+                        const foldersWithIds: Folder[] = data.map(
+                          (folder, index) => ({
+                            id: index + 1,
+                            name: folder.name,
+                            bookmarks: folder.bookmarks,
+                          }),
+                        );
                         setFolders(foldersWithIds);
                         setSelectedFolderId(null);
-                        setSelectedFolderForBookmark(foldersWithIds.length > 0 ? foldersWithIds[0].id : null);
+                        setSelectedFolderForBookmark(
+                          foldersWithIds.length > 0
+                            ? foldersWithIds[0].id
+                            : null,
+                        );
                         setFoldersError(null);
                       })
                       .catch((error) => {
                         setFoldersError(
                           error instanceof Error
                             ? error.message
-                            : 'Failed to load folders'
+                            : "Failed to load folders",
                         );
                       })
                       .finally(() => setFoldersLoading(false));
@@ -577,7 +595,7 @@ function App() {
                 >
                   All
                 </div>
-                
+
                 {/* Regular folders */}
                 {folders.map((folder) => (
                   <div
@@ -599,7 +617,7 @@ function App() {
                         e.stopPropagation();
                         setSelectedFolderForEdit(folder);
                         setEditFolderName(folder.name);
-                        setEditFolderError('');
+                        setEditFolderError("");
                         setIsEditFolderModalOpen(true);
                       }}
                       className="ml-2 p-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors shrink-0"
@@ -660,7 +678,7 @@ function App() {
                         setBookmarksError(
                           error instanceof Error
                             ? error.message
-                            : 'Failed to load bookmarks'
+                            : "Failed to load bookmarks",
                         );
                       })
                       .finally(() => setBookmarksLoading(false));
@@ -687,7 +705,7 @@ function App() {
                     className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
-                      {bookmark.title || 'Untitled'}
+                      {bookmark.title || "Untitled"}
                     </h3>
                     {bookmark.description && (
                       <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
@@ -734,7 +752,7 @@ function App() {
                       .then((data: Hashtag[]) => {
                         setHashtagsData(data);
                         const hashtagNames = data.map((tag) =>
-                          tag.name.startsWith('#') ? tag.name : `#${tag.name}`
+                          tag.name.startsWith("#") ? tag.name : `#${tag.name}`,
                         );
                         setHashtags(hashtagNames);
                         setHashtagsError(null);
@@ -743,7 +761,7 @@ function App() {
                         setHashtagsError(
                           error instanceof Error
                             ? error.message
-                            : 'Failed to load hashtags'
+                            : "Failed to load hashtags",
                         );
                       })
                       .finally(() => setHashtagsLoading(false));
@@ -799,7 +817,7 @@ function App() {
                           e.stopPropagation();
                           setSelectedHashtagForEdit(tag);
                           setEditHashtagName(tag);
-                          setEditHashtagError('');
+                          setEditHashtagError("");
                           setIsEditHashtagModalOpen(true);
                         }}
                         className="ml-2 p-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors shrink-0"
@@ -830,76 +848,11 @@ function App() {
 
       {/* Add Folder Modal */}
       {isAddFolderModalOpen && (
-        <>
-          {/* Transparent Background Overlay */}
-          <div
-            className="fixed inset-0 bg-black dark:bg-black opacity-50 dark:bg-opacity-50 z-40"
-            onClick={handleCancelModal}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                handleCancelModal();
-              }
-            }}
-            role="presentation"
-          />
-          {/* Modal Container */}
-          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-96 pointer-events-auto">
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
-                Add New Folder
-              </h2>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Folder Name
-                </label>
-                <input
-                  type="text"
-                  value={newFolderName}
-                  onChange={(e) => {
-                    setNewFolderName(e.target.value);
-                    if (e.target.value.length >= 3) {
-                      validateFolderName(e.target.value);
-                    } else {
-                      setFolderNameError("");
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") {
-                      handleCancelModal();
-                    }
-                  }}
-                  placeholder="Enter folder name"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:focus:ring-blue-500"
-                  autoFocus
-                />
-                {folderNameError && (
-                  <p className="text-red-600 dark:text-red-400 text-sm mt-2">
-                    {folderNameError}
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={handleCancelModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddFolder}
-                  disabled={!canConfirmFolder}
-                  className={`flex-1 px-4 py-2 rounded-lg transition-colors font-medium ${
-                    canConfirmFolder
-                      ? "bg-blue-600 text-white hover:bg-blue-700"
-                      : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                  }`}
-                >
-                  Confirm
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
+        <AddFolder
+          folders={folders}
+          setFolders={setFolders}
+          onClose={() => setIsAddFolderModalOpen(false)}
+        />
       )}
 
       {/* Add Bookmark Modal */}
@@ -1220,7 +1173,9 @@ function App() {
                     setShowEditHashtagDropdown(e.target.value.length > 0);
                   }}
                   onFocus={() =>
-                    setShowEditHashtagDropdown(editBookmarkHashtagInput.length > 0)
+                    setShowEditHashtagDropdown(
+                      editBookmarkHashtagInput.length > 0,
+                    )
                   }
                   onKeyDown={(e) => {
                     if (e.key === "Escape") {
@@ -1234,14 +1189,21 @@ function App() {
                 {/* Hashtag Dropdown */}
                 {showEditHashtagDropdown && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto dark:bg-gray-700 dark:border-gray-600">
-                    {hashtags.filter((tag) =>
-                      tag.toLowerCase().includes(editBookmarkHashtagInput.toLowerCase()) &&
-                        !editBookmarkHashtags.includes(tag)
+                    {hashtags.filter(
+                      (tag) =>
+                        tag
+                          .toLowerCase()
+                          .includes(editBookmarkHashtagInput.toLowerCase()) &&
+                        !editBookmarkHashtags.includes(tag),
                     ).length > 0 ? (
                       hashtags
-                        .filter((tag) =>
-                          tag.toLowerCase().includes(editBookmarkHashtagInput.toLowerCase()) &&
-                            !editBookmarkHashtags.includes(tag)
+                        .filter(
+                          (tag) =>
+                            tag
+                              .toLowerCase()
+                              .includes(
+                                editBookmarkHashtagInput.toLowerCase(),
+                              ) && !editBookmarkHashtags.includes(tag),
                         )
                         .map((tag) => (
                           <button
@@ -1256,7 +1218,9 @@ function App() {
                       <div className="px-4 py-3">
                         <button
                           onClick={() => {
-                            const newTag = editBookmarkHashtagInput.startsWith("#")
+                            const newTag = editBookmarkHashtagInput.startsWith(
+                              "#",
+                            )
                               ? editBookmarkHashtagInput
                               : `#${editBookmarkHashtagInput}`;
                             handleEditAddHashtag(newTag);
@@ -1316,14 +1280,16 @@ function App() {
                 {/* Folder Dropdown */}
                 {showEditFolderDropdown && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto dark:bg-gray-700 dark:border-gray-600">
-                    {folders
-                      .filter((folder) =>
-                        folder.name.toLowerCase().includes(editFolderSearchInput.toLowerCase())
-                      )
-                      .length > 0 ? (
+                    {folders.filter((folder) =>
+                      folder.name
+                        .toLowerCase()
+                        .includes(editFolderSearchInput.toLowerCase()),
+                    ).length > 0 ? (
                       folders
                         .filter((folder) =>
-                          folder.name.toLowerCase().includes(editFolderSearchInput.toLowerCase())
+                          folder.name
+                            .toLowerCase()
+                            .includes(editFolderSearchInput.toLowerCase()),
                         )
                         .map((folder) => (
                           <button
@@ -1361,8 +1327,9 @@ function App() {
                     Selected:{" "}
                     <span className="font-medium">
                       {
-                        folders.find((f) => f.id === selectedFolderForEditBookmark)
-                          ?.name
+                        folders.find(
+                          (f) => f.id === selectedFolderForEditBookmark,
+                        )?.name
                       }
                     </span>
                   </p>
@@ -1423,7 +1390,7 @@ function App() {
                   value={editHashtagName}
                   onChange={(e) => {
                     setEditHashtagName(e.target.value);
-                    setEditHashtagError('');
+                    setEditHashtagError("");
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -1492,7 +1459,7 @@ function App() {
                   value={editFolderName}
                   onChange={(e) => {
                     setEditFolderName(e.target.value);
-                    setEditFolderError('');
+                    setEditFolderError("");
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -1549,4 +1516,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
