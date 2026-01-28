@@ -9,11 +9,11 @@ interface AddFolderProps {
 
 export default function AddFolder({ folders, setFolders, onClose }: AddFolderProps) {
   const [newFolderName, setNewFolderName] = useState("");
-  const [folderError, setfolderError] = useState("");
+  const [folderError, setFolderError] = useState("");
 
   const handleCancelModal = () => {
     setNewFolderName("");
-    setfolderError("");
+    setFolderError("");
     onClose();
   };
 
@@ -21,14 +21,14 @@ export default function AddFolder({ folders, setFolders, onClose }: AddFolderPro
     if (
       folders.some((folder) => folder.name.toLowerCase() === name.toLowerCase())
     ) {
-      setfolderError("Folder name already exists");
+      setFolderError("Folder name already exists");
       return false;
     }
-    setfolderError("");
+    setFolderError("");
     return true;
   };
 
-  const handleAddFolder = () => {
+  const handleConfirm = () => {
     if (validateFolderName(newFolderName)) {
       addFolder(newFolderName)
         .then((folderData) => {
@@ -36,7 +36,7 @@ export default function AddFolder({ folders, setFolders, onClose }: AddFolderPro
           handleCancelModal();
         })
         .catch((error: Error) => {
-          setfolderError(error.message);
+          setFolderError(error.message);
         });
     }
   };
@@ -74,7 +74,7 @@ export default function AddFolder({ folders, setFolders, onClose }: AddFolderPro
                 if (e.target.value.length >= 3) {
                   validateFolderName(e.target.value);
                 } else {
-                  setfolderError("");
+                  setFolderError("");
                 }
               }}
               onKeyDown={(e) => {
@@ -102,7 +102,7 @@ export default function AddFolder({ folders, setFolders, onClose }: AddFolderPro
               Cancel
             </button>
             <button
-              onClick={handleAddFolder}
+              onClick={handleConfirm}
               disabled={!canConfirmFolder}
               className={`flex-1 px-4 py-2 rounded-lg transition-colors font-medium ${
                 canConfirmFolder
