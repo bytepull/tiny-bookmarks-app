@@ -7,7 +7,11 @@ interface AddFolderProps {
   onClose: () => void;
 }
 
-export default function AddFolder({ folders, setFolders, onClose }: AddFolderProps) {
+export default function AddFolder({
+  folders,
+  setFolders,
+  onClose,
+}: AddFolderProps) {
   const [newFolderName, setNewFolderName] = useState("");
   const [folderError, setFolderError] = useState("");
 
@@ -29,8 +33,10 @@ export default function AddFolder({ folders, setFolders, onClose }: AddFolderPro
   };
 
   const handleConfirm = () => {
-    if (validateFolderName(newFolderName)) {
-      addFolder(newFolderName)
+    const folderName = newFolderName.trim();
+
+    if (validateFolderName(folderName)) {
+      addFolder(folderName)
         .then((folderData) => {
           setFolders([...folders, folderData]);
           handleCancelModal();
