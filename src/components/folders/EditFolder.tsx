@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { updateFolder, deleteFolder, type Folder } from "../../utils/remoteDataService";
 
-interface AddFolderProps {
+interface EditFolderProps {
   folders: Folder[];
   setFolders: React.Dispatch<React.SetStateAction<Folder[]>>;
   editFolder: Folder;
@@ -13,7 +13,7 @@ export default function EditFolder({
   setFolders,
   editFolder,
   onClose,
-}: AddFolderProps) {
+}: EditFolderProps) {
   const [folderName, setFolderName] = useState(editFolder.name);
   const [folderError, setFolderError] = useState("");
 
