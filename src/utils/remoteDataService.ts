@@ -146,43 +146,58 @@ export const addFolder = async (name: string): Promise<Folder> => {
       );
     }
 
-    console.log("Folder added successfully");
     const folderData = await response.json();
     return folderData;
-
   } catch (error) {
     console.error("Error updating folder:", error);
     throw error;
   }
 };
 
-export const updateFolder = async (
-  oldName: string,
-  newName: string,
-): Promise<void> => {
+export const updateFolder = async (folder: Folder): Promise<void> => {
   try {
-    const serverUrl = `${window.location.protocol}://${window.location.hostname}:54098`;
-    const url = `${serverUrl}/folders/${oldName}`;
+    const serverUrl = `${window.location.protocol}//${window.location.hostname}:54098`;
+    const url = `${serverUrl}/folders/${folder.id}`;
+
+    console.log(url);
 
     const headers: HeadersInit = {
       "Content-Type": "application/json",
     };
 
-    // Add Basic Auth if username and password are provided
-    // if (username && password) {
-    //   const credentials = btoa(`${username}:${password}`);
-    //   headers["Authorization"] = `Basic ${credentials}`;
-    // }
-
     const response = await fetch(url, {
       method: "PATCH",
       headers,
-      body: JSON.stringify({ name: newName }),
+      body: JSON.stringify({ name: folder.name }),
     });
 
     if (!response.ok) {
       throw new Error(`Failed to update folder: ${response.statusText}`);
     }
+
+    return;
+  } catch (error) {
+    console.error("Error updating folder:", error);
+    throw error;
+  }
+};
+
+export const deleteFolder = async (folder: Folder): Promise<void> => {
+  try {
+    const serverUrl = `${window.location.protocol}//${window.location.hostname}:54098`;
+    const url = `${serverUrl}/folders/${folder.id}`;
+
+    console.log(url);
+
+    const response = await fetch(url, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update folder: ${response.statusText}`);
+    }
+
+    return;
   } catch (error) {
     console.error("Error updating folder:", error);
     throw error;
