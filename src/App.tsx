@@ -6,10 +6,10 @@ import {
   fetchFolders,
   fetchBookmarks,
   updateHashtag,
-  updateFolder,
 } from "./utils/remoteDataService";
 import type { Hashtag, Folder, Bookmark } from "./utils/remoteDataService";
 import AddFolder from "./components/folders/AddFolder";
+import EditFolder from "./components/folders/EditFolder";
 
 function App() {
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -17,6 +17,9 @@ function App() {
   const [foldersError, setFoldersError] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false);
+  const [isEditFolderModalOpen, setIsEditFolderModalOpen] = useState(false);
+  const [editFolder, setEditFolder] = useState<Folder | null>(null);
+
 
   const [selectedHashtags, setSelectedHashtags] = useState<string[]>([]);
 
@@ -67,12 +70,6 @@ function App() {
   >(null);
   const [editHashtagName, setEditHashtagName] = useState("");
   const [editHashtagError, setEditHashtagError] = useState("");
-
-  const [isEditFolderModalOpen, setIsEditFolderModalOpen] = useState(false);
-  const [selectedFolderForEdit, setSelectedFolderForEdit] =
-    useState<Folder | null>(null);
-  const [editFolderName, setEditFolderName] = useState("");
-  const [editFolderError, setEditFolderError] = useState("");
 
   // Initialize settings from cookies
   const getCookieValue = (name: string): string => {
@@ -271,60 +268,6 @@ function App() {
     }
   };
 
-  const handleCancelEditFolderModal = () => {
-    setSelectedFolderForEdit(null);
-    setEditFolderName("");
-    setEditFolderError("");
-    setIsEditFolderModalOpen(false);
-  };
-
-  const handleSaveEditFolder = async () => {
-    if (!editFolderName.trim()) {
-      setEditFolderError("Folder name cannot be empty");
-      return;
-    }
-
-    if (selectedFolderForEdit?.name === editFolderName) {
-      handleCancelEditFolderModal();
-      return;
-    }
-
-    // Check if folder name already exists
-    if (
-      folders.some(
-        (folder) =>
-          folder.name.toLowerCase() === editFolderName.toLowerCase() &&
-          folder.id !== selectedFolderForEdit?.id,
-      )
-    ) {
-      setEditFolderError("Folder name already exists");
-      return;
-    }
-
-    try {
-      const oldName = selectedFolderForEdit?.name || "";
-
-      // Update folder via API
-      await updateFolder(oldName, editFolderName);
-
-      // Update local state
-      setFolders((prev) =>
-        prev.map((folder) =>
-          folder.id === selectedFolderForEdit?.id
-            ? { ...folder, name: editFolderName }
-            : folder,
-        ),
-      );
-
-      handleCancelEditFolderModal();
-    } catch (error) {
-      console.error("Failed to update folder:", error);
-      setEditFolderError(
-        error instanceof Error ? error.message : "Failed to update folder",
-      );
-    }
-  };
-
   const settingsButtonRef = useRef<HTMLDivElement>(null);
 
   const handleSettingsChange = (
@@ -398,17 +341,12 @@ function App() {
         setFoldersLoading(true);
         setFoldersError(null);
         const data: Folder[] = await fetchFolders();
-        // Store folders with generated IDs
-        const foldersWithIds: Folder[] = data.map((folder, index) => ({
-          id: index + 1,
-          name: folder.name,
-          bookmarks: folder.bookmarks,
-        }));
-        setFolders(foldersWithIds);
+        // console.log(data);
+        setFolders(data);
         // Set "All" as selected by default (null means all folders)
         setSelectedFolderId(null);
         setSelectedFolderForBookmark(
-          foldersWithIds.length > 0 ? foldersWithIds[0].id : null,
+          data.length > 0 ? data[0].id : null,
         );
       } catch (error) {
         console.error("Failed to load folders:", error);
@@ -538,6 +476,8 @@ function App() {
             >
               + New Folder
             </button>
+
+            {/* Folders List */}
             {foldersLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -612,12 +552,11 @@ function App() {
                     >
                       {folder.name}
                     </div>
+                    {/* Edit Folder Button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedFolderForEdit(folder);
-                        setEditFolderName(folder.name);
-                        setEditFolderError("");
+                        setEditFolder(folder);
                         setIsEditFolderModalOpen(true);
                       }}
                       className="ml-2 p-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors shrink-0"
@@ -1432,71 +1371,12 @@ function App() {
 
       {/* Edit Folder Modal */}
       {isEditFolderModalOpen && (
-        <>
-          {/* Transparent Background Overlay */}
-          <div
-            className="fixed inset-0 bg-black dark:bg-black opacity-50 dark:bg-opacity-50 z-40"
-            onClick={handleCancelEditFolderModal}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                handleCancelEditFolderModal();
-              }
-            }}
-            role="presentation"
-          />
-          {/* Modal Container */}
-          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-96 pointer-events-auto">
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
-                Edit Folder
-              </h2>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Folder Name
-                </label>
-                <input
-                  type="text"
-                  value={editFolderName}
-                  onChange={(e) => {
-                    setEditFolderName(e.target.value);
-                    setEditFolderError("");
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSaveEditFolder();
-                    } else if (e.key === "Escape") {
-                      handleCancelEditFolderModal();
-                    }
-                  }}
-                  placeholder="Enter folder name"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:focus:ring-blue-500"
-                  autoFocus
-                />
-                {editFolderError && (
-                  <p className="text-red-600 dark:text-red-400 text-sm mt-2">
-                    {editFolderError}
-                  </p>
-                )}
-              </div>
-
-              {/* Buttons */}
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={handleCancelEditFolderModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveEditFolder}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium dark:bg-blue-700 dark:hover:bg-blue-600"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
+        <EditFolder
+          folders={folders}
+          setFolders={setFolders}
+          editFolder={editFolder!}
+          onClose={() => setIsEditFolderModalOpen(false)}
+        />
       )}
 
       {/* Settings Modal */}
