@@ -20,7 +20,6 @@ function App() {
   const [isEditFolderModalOpen, setIsEditFolderModalOpen] = useState(false);
   const [editFolder, setEditFolder] = useState<Folder | null>(null);
 
-
   const [selectedHashtags, setSelectedHashtags] = useState<string[]>([]);
 
   const [hashtagsData, setHashtagsData] = useState<Hashtag[]>([]);
@@ -345,9 +344,7 @@ function App() {
         setFolders(data);
         // Set "All" as selected by default (null means all folders)
         setSelectedFolderId(null);
-        setSelectedFolderForBookmark(
-          data.length > 0 ? data[0].id : null,
-        );
+        setSelectedFolderForBookmark(data.length > 0 ? data[0].id : null);
       } catch (error) {
         console.error("Failed to load folders:", error);
         setFoldersError(
@@ -391,7 +388,7 @@ function App() {
 
   // First, filter by folder
   let filteredBookmarks = selectedFolder
-    ? bookmarks.filter((b) => selectedFolder.bookmarks.includes(b.id))
+    ? bookmarks.filter((b) => selectedFolder.bookmarks.includes(Number(b.id)))
     : bookmarks;
 
   // Then, filter by selected hashtags
